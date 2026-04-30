@@ -1,4 +1,7 @@
-import os
+﻿import os
+from datetime import datetime, timezone
+
+import pandas as pd
 from flask import Flask, request, jsonify, render_template
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from google import genai
@@ -6,7 +9,8 @@ from google.genai import types
 from dotenv import load_dotenv
 
 # Import our custom news fetcher
-from data_fetcher import get_stock_news
+from data_fetcher import get_stock_news, get_stock_news_records
+from sentiment_trend import SentimentTrendPipeline
 
 load_dotenv()
 
@@ -14,8 +18,9 @@ app = Flask(__name__)
 
 # 1. Initialize VADER
 analyzer = SentimentIntensityAnalyzer()
+trend_pipeline = SentimentTrendPipeline(freq='D', z_threshold=1.8, window=5)
 
-# 2. Configure Gemini 2.5
+# 2. Configure Gemini 3.1 Flash Lite
 api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
     raise ValueError("GEMINI_API_KEY is missing!")
@@ -39,7 +44,7 @@ def chat():
     
     # --- HYBRID STEP 2: LEXICON SENTIMENT ANALYSIS ---
     if not news_articles:
-        sentiment = 'Neutral ➖'
+        sentiment = 'Neutral'
         news_context = "No recent news found for this query."
     else:
         # Combine all news into one massive string and let VADER analyze the actual market tone
@@ -48,11 +53,11 @@ def chat():
         compound = scores['compound']
         
         if compound >= 0.05:
-            sentiment = 'Positive 📈'
+            sentiment = 'Positive'
         elif compound <= -0.05:
-            sentiment = 'Negative 📉'
+            sentiment = 'Negative'
         else:
-            sentiment = 'Neutral ➖'
+            sentiment = 'Neutral'
             
         # Format the news nicely for the AI to read
         news_context = "\n".join([f"- {news}" for news in news_articles])
@@ -75,7 +80,7 @@ def chat():
     # --- HYBRID STEP 4: AI GENERATION ---
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-3.1-flash-lite-preview',
             contents=prompt,
             config=types.GenerateContentConfig(
                 temperature=0.2, 
@@ -105,6 +110,42 @@ def chat():
         # Update the UI badge to show it's analyzing the NEWS, not the user
         "sentiment": f"{sentiment} (Based on News)" 
     })
+
+@app.route('/sentiment-trend', methods=['POST'])
+def sentiment_trend():
+    data = request.json or {}
+    query = (data.get('query') or '').strip()
+
+    if not query:
+        return jsonify({"records": [], "chartjs": {"labels": [], "datasets": []}, "summary": {}, "error": "Query is required."}), 400
+
+    articles = get_stock_news_records(query, page_size=40)
+    if not articles:
+        return jsonify({
+            "records": [],
+            "chartjs": {"labels": [], "datasets": []},
+            "summary": {"total_texts": 0, "anomaly_dates": []},
+            "error": "No recent news found for this query."
+        })
+
+    rows = []
+    for article in articles:
+        published_at = article.get('publishedAt') or datetime.now(timezone.utc).isoformat()
+        text = f"{article.get('title', '')}. {article.get('description', '')}".strip()
+        if text:
+            rows.append({"timestamp": published_at, "text": text})
+
+    if not rows:
+        return jsonify({
+            "records": [],
+            "chartjs": {"labels": [], "datasets": []},
+            "summary": {"total_texts": 0, "anomaly_dates": []},
+            "error": "News results did not include usable text."
+        })
+
+    trend_df = pd.DataFrame(rows)
+    output = trend_pipeline.run(trend_df, text_col='text', timestamp_col='timestamp')
+    return jsonify(output)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

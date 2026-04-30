@@ -1,186 +1,1269 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance AI Chatbot</title>
+    <title>MarketSentiment AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f7f6;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
+        :root {
+            --bg: #0a0b0d;
+            --surface: #111318;
+            --surface-2: #181c24;
+            --surface-3: #1f2530;
+            --border: rgba(255,255,255,0.07);
+            --border-2: rgba(255,255,255,0.12);
+            --text: #e8eaf0;
+            --text-muted: #6b7280;
+            --text-dim: #3d4452;
+            --accent: #00d4a8;
+            --accent-dim: rgba(0,212,168,0.12);
+            --accent-glow: rgba(0,212,168,0.25);
+            --positive: #00d4a8;
+            --positive-bg: rgba(0,212,168,0.08);
+            --negative: #f0636b;
+            --negative-bg: rgba(240,99,107,0.08);
+            --neutral: #f0a838;
+            --neutral-bg: rgba(240,168,56,0.08);
+            --info: #5b9df0;
+            --radius: 10px;
+            --radius-lg: 16px;
         }
-        .chat-container {
-            width: 500px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            grid-template-rows: 100vh;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .sidebar-logo {
+            padding: 24px 20px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo-mark {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+
+        .logo-icon {
+            width: 30px;
+            height: 30px;
+            background: var(--accent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logo-icon svg { width: 16px; height: 16px; }
+
+        .logo-text {
+            font-family: 'Instrument Serif', serif;
+            font-size: 18px;
+            color: var(--text);
+            letter-spacing: -0.3px;
+        }
+
+        .logo-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        /* Watchlist */
+        .sidebar-section {
+            padding: 16px 12px 8px;
+        }
+
+        .sidebar-section-title {
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 500;
+            padding: 0 8px;
+            margin-bottom: 8px;
+        }
+
+        .watchlist-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 9px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.15s;
+            margin-bottom: 2px;
+        }
+
+        .watchlist-item:hover, .watchlist-item.active {
+            background: var(--surface-2);
+        }
+
+        .watchlist-item.active {
+            border: 1px solid var(--border-2);
+        }
+
+        .ticker-info { display: flex; flex-direction: column; }
+
+        .ticker-symbol {
+            font-family: 'DM Mono', monospace;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .ticker-name {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        .ticker-sentiment {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 3px;
+        }
+
+        .sentiment-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+        }
+
+        .sentiment-dot.positive { background: var(--positive); }
+        .sentiment-dot.negative { background: var(--negative); }
+        .sentiment-dot.neutral { background: var(--neutral); }
+
+        .ticker-score {
+            font-family: 'DM Mono', monospace;
+            font-size: 11px;
+        }
+
+        .ticker-score.pos { color: var(--positive); }
+        .ticker-score.neg { color: var(--negative); }
+        .ticker-score.neu { color: var(--neutral); }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .model-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--surface-2);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .model-indicator {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 6px var(--accent);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .model-text { font-size: 12px; color: var(--text-muted); }
+        .model-name { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--accent); }
+
+        /* MAIN */
+        .main {
+            display: grid;
+            grid-template-rows: 56px 1fr;
+            overflow: hidden;
+        }
+
+        /* TOPBAR */
+        .topbar {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            gap: 16px;
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .page-title {
+            font-family: 'Instrument Serif', serif;
+            font-size: 17px;
+            font-style: italic;
+            color: var(--text);
+        }
+
+        .sentiment-summary {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: var(--positive-bg);
+            border: 1px solid rgba(0,212,168,0.2);
+            border-radius: 20px;
+        }
+
+        .summary-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--positive);
+        }
+
+        .summary-text { font-size: 12px; color: var(--positive); font-weight: 500; }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stat-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .stat-pill span { color: var(--text); font-weight: 500; }
+
+        /* WORKSPACE */
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            grid-template-rows: auto 1fr;
+            gap: 0;
+            overflow: hidden;
+        }
+
+        /* METRICS ROW */
+        .metrics-row {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            background: var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .metric-card {
+            background: var(--surface);
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .metric-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+        }
+
+        .metric-value {
+            font-family: 'DM Mono', monospace;
+            font-size: 22px;
+            font-weight: 500;
+            color: var(--text);
+            line-height: 1;
+        }
+
+        .metric-delta {
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .metric-delta.pos { color: var(--positive); }
+        .metric-delta.neg { color: var(--negative); }
+
+        /* CHAT PANEL */
+        .chat-panel {
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-right: 1px solid var(--border);
+        }
+
+        .chat-header {
+            padding: 16px 20px 12px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        .chat-header-title {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
             padding: 20px;
             display: flex;
             flex-direction: column;
+            gap: 16px;
         }
-        .header {
-            text-align: center;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 15px;
-            margin-bottom: 15px;
-        }
-        .header h2 { margin: 0; color: #2c3e50; }
-        .header p { margin: 5px 0 0 0; color: #7f8c8d; font-size: 14px; }
-        
-        .chat-box {
-            height: 400px;
-            overflow-y: auto;
-            padding: 10px;
+
+        .chat-messages::-webkit-scrollbar { width: 4px; }
+        .chat-messages::-webkit-scrollbar-track { background: transparent; }
+        .chat-messages::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 2px; }
+
+        .message-wrap {
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 4px;
         }
-        .message {
+
+        .message-wrap.user { align-items: flex-end; }
+        .message-wrap.bot { align-items: flex-start; }
+
+        .message-bubble {
             max-width: 85%;
-            padding: 12px 16px;
-            border-radius: 15px;
-            line-height: 1.5;
-            font-size: 15px;
+            padding: 11px 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.6;
         }
-        .user-msg {
-            background: #3498db;
-            color: white;
-            align-self: flex-end;
-            border-bottom-right-radius: 2px;
+
+        .user .message-bubble {
+            background: var(--surface-3);
+            border: 1px solid var(--border-2);
+            color: var(--text);
+            border-bottom-right-radius: 4px;
         }
-        .bot-msg {
-            background: #ecf0f1;
-            color: #2c3e50;
-            align-self: flex-start;
-            border-bottom-left-radius: 2px;
+
+        .bot .message-bubble {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-bottom-left-radius: 4px;
         }
-        .sentiment-badge {
-            font-size: 12px;
-            font-weight: bold;
-            color: #e67e22;
-            display: block;
-            margin-bottom: 5px;
-            border-bottom: 1px solid #dcdde1;
-            padding-bottom: 3px;
+
+        .bot .message-bubble strong { color: var(--info); font-weight: 500; }
+
+        .sentiment-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 9px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 500;
+            margin-bottom: 6px;
         }
-        .input-area {
+
+        .sentiment-chip.positive {
+            background: var(--positive-bg);
+            border: 1px solid rgba(0,212,168,0.2);
+            color: var(--positive);
+        }
+
+        .sentiment-chip.negative {
+            background: var(--negative-bg);
+            border: 1px solid rgba(240,99,107,0.2);
+            color: var(--negative);
+        }
+
+        .sentiment-chip.neutral {
+            background: var(--neutral-bg);
+            border: 1px solid rgba(240,168,56,0.2);
+            color: var(--neutral);
+        }
+
+        .message-time {
+            font-size: 10px;
+            color: var(--text-dim);
+            padding: 0 4px;
+        }
+
+        /* Typing indicator */
+        .typing-dots {
             display: flex;
-            margin-top: 20px;
+            gap: 4px;
+            padding: 14px;
+        }
+
+        .typing-dots span {
+            width: 5px; height: 5px;
+            border-radius: 50%;
+            background: var(--text-dim);
+            animation: bounce 1.2s infinite;
+        }
+
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+            40% { transform: translateY(-4px); opacity: 1; }
+        }
+
+        /* CHAT INPUT */
+        .chat-input-area {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .chat-input {
+            flex: 1;
+            background: var(--surface-2);
+            border: 1px solid var(--border-2);
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            outline: none;
+            resize: none;
+            min-height: 42px;
+            max-height: 100px;
+            transition: border-color 0.15s;
+            line-height: 1.5;
+        }
+
+        .chat-input::placeholder { color: var(--text-dim); }
+        .chat-input:focus { border-color: var(--accent); }
+
+        .send-btn {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: var(--accent);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.15s, transform 0.1s;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover { opacity: 0.85; }
+        .send-btn:active { transform: scale(0.95); }
+        .send-btn svg { width: 16px; height: 16px; color: #000; }
+
+        .quick-prompts {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        .quick-btn {
+            padding: 5px 10px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .quick-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        /* RIGHT PANEL */
+        .right-panel {
+            background: var(--surface);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            border-left: 1px solid var(--border);
+        }
+
+        .right-panel::-webkit-scrollbar { width: 4px; }
+        .right-panel::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 2px; }
+
+        .panel-section {
+            padding: 18px 18px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-section-title {
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 500;
+            margin-bottom: 14px;
+        }
+
+        /* Mini sparkline bars */
+        .sentiment-bars {
+            display: flex;
+            flex-direction: column;
             gap: 10px;
         }
-        input {
+
+        .bar-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .bar-label {
+            font-family: 'DM Mono', monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+            width: 50px;
+            flex-shrink: 0;
+        }
+
+        .bar-track {
             flex: 1;
-            padding: 12px 15px;
-            border: 1px solid #bdc3c7;
-            border-radius: 25px;
-            outline: none;
-            font-size: 15px;
+            height: 4px;
+            background: var(--surface-3);
+            border-radius: 2px;
+            overflow: hidden;
         }
-        input:focus { border-color: #3498db; }
-        button {
-            padding: 12px 25px;
-            background: #2c3e50;
-            color: white;
-            border: none;
-            border-radius: 25px;
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .bar-fill.pos { background: var(--positive); }
+        .bar-fill.neg { background: var(--negative); }
+        .bar-fill.neu { background: var(--neutral); }
+
+        .bar-pct {
+            font-family: 'DM Mono', monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+            width: 30px;
+            text-align: right;
+        }
+
+        .trend-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .trend-query {
+            font-family: 'DM Mono', monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px;
+        }
+
+        .trend-chart-wrap {
+            height: 190px;
+            width: 100%;
+        }
+
+        .trend-chart-wrap canvas {
+            display: none;
+            width: 100% !important;
+            height: 190px !important;
+        }
+
+        .trend-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .trend-stat {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px;
+        }
+
+        .trend-stat-label {
+            display: block;
+            font-size: 9px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 4px;
+        }
+
+        .trend-stat-value {
+            font-family: 'DM Mono', monospace;
+            font-size: 13px;
+            color: var(--text);
+        }
+
+        .trend-empty {
+            height: 190px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            font-size: 13px;
+            text-align: center;
+            border: 1px dashed var(--border-2);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        /* News items */
+        .news-item {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
             cursor: pointer;
-            font-weight: bold;
-            transition: background 0.3s;
         }
-        button:hover { background: #34495e; }
-        
-        /* Markdown formatting support */
-        .bot-msg strong { color: #2980b9; }
+
+        .news-item:last-child { border-bottom: none; }
+
+        .news-source {
+            font-size: 10px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 4px;
+        }
+
+        .news-headline {
+            font-size: 13px;
+            color: var(--text);
+            line-height: 1.4;
+            margin-bottom: 4px;
+        }
+
+        .news-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .news-time { font-size: 11px; color: var(--text-dim); }
+
+        .news-tag {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .news-tag.pos { background: var(--positive-bg); color: var(--positive); }
+        .news-tag.neg { background: var(--negative-bg); color: var(--negative); }
+        .news-tag.neu { background: var(--neutral-bg); color: var(--neutral); }
+
+        /* History */
+        .history-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 0;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .history-item:last-child { border-bottom: none; }
+
+        .history-item:hover .history-query { color: var(--accent); }
+
+        .history-query {
+            font-size: 13px;
+            color: var(--text-muted);
+            flex: 1;
+            transition: color 0.15s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-chip {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .history-chip.pos { background: var(--positive-bg); color: var(--positive); }
+        .history-chip.neg { background: var(--negative-bg); color: var(--negative); }
+
+        /* Fade-in animation for messages */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-wrap { animation: fadeUp 0.25s ease; }
     </style>
 </head>
 <body>
 
-<div class="chat-container">
-    <div class="header">
-        <h2>MarketSentiment AI</h2>
-        <p>Hybrid NLP + Gemini Financial Analyst</p>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+    <div class="sidebar-logo">
+        <div class="logo-mark">
+            <div class="logo-icon">
+                <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2 12L6 7L9 10L13 4" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="13" cy="4" r="1.5" fill="#000"/>
+                </svg>
+            </div>
+            <span class="logo-text">MarketSentiment</span>
+        </div>
+        <p class="logo-sub">AI-Powered Analysis</p>
     </div>
-    
-    <div class="chat-box" id="chat-box">
-        <div class="message bot-msg">
-            Hello! I am a financial domain chatbot. Ask me about market sentiment, specific stocks, or economic concepts (e.g., "Why is Nvidia dropping today?").
+
+    <div class="sidebar-section">
+        <p class="sidebar-section-title">Watchlist</p>
+        <div class="watchlist-item active" onclick="quickSearch('NVDA')">
+            <div class="ticker-info">
+                <span class="ticker-symbol">NVDA</span>
+                <span class="ticker-name">NVIDIA Corp</span>
+            </div>
+            <div class="ticker-sentiment">
+                <div class="sentiment-dot positive"></div>
+                <span class="ticker-score pos">+0.72</span>
+            </div>
+        </div>
+        <div class="watchlist-item" onclick="quickSearch('TSLA')">
+            <div class="ticker-info">
+                <span class="ticker-symbol">TSLA</span>
+                <span class="ticker-name">Tesla Inc</span>
+            </div>
+            <div class="ticker-sentiment">
+                <div class="sentiment-dot negative"></div>
+                <span class="ticker-score neg">-0.34</span>
+            </div>
+        </div>
+        <div class="watchlist-item" onclick="quickSearch('AAPL')">
+            <div class="ticker-info">
+                <span class="ticker-symbol">AAPL</span>
+                <span class="ticker-name">Apple Inc</span>
+            </div>
+            <div class="ticker-sentiment">
+                <div class="sentiment-dot positive"></div>
+                <span class="ticker-score pos">+0.51</span>
+            </div>
+        </div>
+        <div class="watchlist-item" onclick="quickSearch('MSFT')">
+            <div class="ticker-info">
+                <span class="ticker-symbol">MSFT</span>
+                <span class="ticker-name">Microsoft Corp</span>
+            </div>
+            <div class="ticker-sentiment">
+                <div class="sentiment-dot positive"></div>
+                <span class="ticker-score pos">+0.63</span>
+            </div>
+        </div>
+        <div class="watchlist-item" onclick="quickSearch('META')">
+            <div class="ticker-info">
+                <span class="ticker-symbol">META</span>
+                <span class="ticker-name">Meta Platforms</span>
+            </div>
+            <div class="ticker-sentiment">
+                <div class="sentiment-dot neutral"></div>
+                <span class="ticker-score neu">+0.02</span>
+            </div>
+        </div>
+        <div class="watchlist-item" onclick="quickSearch('AMZN')">
+            <div class="ticker-info">
+                <span class="ticker-symbol">AMZN</span>
+                <span class="ticker-name">Amazon</span>
+            </div>
+            <div class="ticker-sentiment">
+                <div class="sentiment-dot negative"></div>
+                <span class="ticker-score neg">-0.18</span>
+            </div>
         </div>
     </div>
-    
-    <div class="input-area">
-        <input type="text" id="user-input" placeholder="Type your financial query..." onkeypress="handleKeyPress(event)">
-        <button onclick="sendMessage()">Send</button>
+
+    <div class="sidebar-footer">
+        <div class="model-badge">
+            <div class="model-indicator"></div>
+            <span class="model-text">Engine:</span>
+            <span class="model-name">Gemini 2.5 Flash</span>
+        </div>
     </div>
-</div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+    <!-- TOPBAR -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <span class="page-title">Market Intelligence</span>
+            <div class="sentiment-summary">
+                <div class="summary-dot"></div>
+                <span class="summary-text">Market broadly positive today</span>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <div class="stat-pill">Queries today <span id="query-count">0</span></div>
+            <div class="stat-pill">Avg sentiment <span id="avg-sentiment">â€“</span></div>
+        </div>
+    </div>
+
+    <!-- WORKSPACE -->
+    <div class="workspace">
+
+        <!-- METRICS ROW -->
+        <div class="metrics-row">
+            <div class="metric-card">
+                <span class="metric-label">Queries Run</span>
+                <span class="metric-value" id="metric-queries">0</span>
+                <span class="metric-delta pos">session total</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Positive Signals</span>
+                <span class="metric-value" id="metric-pos">0</span>
+                <span class="metric-delta pos" id="metric-pos-pct">â€“</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Negative Signals</span>
+                <span class="metric-value" id="metric-neg">0</span>
+                <span class="metric-delta neg" id="metric-neg-pct">â€“</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Neutral Signals</span>
+                <span class="metric-value" id="metric-neu">0</span>
+                <span class="metric-delta" id="metric-neu-pct">â€“</span>
+            </div>
+        </div>
+
+        <!-- CHAT -->
+        <div class="chat-panel">
+            <div class="chat-header">
+                <span class="chat-header-title">AI Analyst Chat</span>
+            </div>
+
+            <div class="chat-messages" id="chat-box">
+                <div class="message-wrap bot">
+                    <div class="message-bubble">
+                        Welcome to <strong>MarketSentiment AI</strong>. I analyze live news and provide VADER-scored sentiment analysis backed by Gemini 2.5. Ask me about any stock, sector, or macro concept.
+                    </div>
+                    <span class="message-time">Now</span>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <div class="quick-prompts">
+                    <button class="quick-btn" onclick="quickSearch('Why is NVDA up today?')">NVDA today</button>
+                    <button class="quick-btn" onclick="quickSearch('TSLA outlook')">TSLA outlook</button>
+                    <button class="quick-btn" onclick="quickSearch('Fed interest rates')">Fed rates</button>
+                    <button class="quick-btn" onclick="quickSearch('AI stocks sentiment')">AI stocks</button>
+                </div>
+                <div class="input-row">
+                    <textarea class="chat-input" id="user-input" rows="1" placeholder="Ask about any stock, sector, or market conceptâ€¦" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+                    <button class="send-btn" onclick="sendMessage()">
+                        <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14 2L2 7l5 1.5L8.5 14 14 2z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL -->
+        <div class="right-panel">
+            <!-- Sentiment breakdown -->
+            <div class="panel-section">
+                <p class="panel-section-title">Session Sentiment Mix</p>
+                <div class="sentiment-bars">
+                    <div class="bar-row">
+                        <span class="bar-label">Positive</span>
+                        <div class="bar-track"><div class="bar-fill pos" id="bar-pos" style="width:0%"></div></div>
+                        <span class="bar-pct" id="bpct-pos">0%</span>
+                    </div>
+                    <div class="bar-row">
+                        <span class="bar-label">Negative</span>
+                        <div class="bar-track"><div class="bar-fill neg" id="bar-neg" style="width:0%"></div></div>
+                        <span class="bar-pct" id="bpct-neg">0%</span>
+                    </div>
+                    <div class="bar-row">
+                        <span class="bar-label">Neutral</span>
+                        <div class="bar-track"><div class="bar-fill neu" id="bar-neu" style="width:0%"></div></div>
+                        <span class="bar-pct" id="bpct-neu">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sentiment trend -->
+            <div class="panel-section">
+                <div class="trend-header">
+                    <p class="panel-section-title" style="margin-bottom:0;">Sentiment Trend</p>
+                    <span class="trend-query" id="trend-query">No query</span>
+                </div>
+                <div class="trend-chart-wrap">
+                    <canvas id="sentiment-trend-chart" aria-label="Sentiment trend chart"></canvas>
+                    <div class="trend-empty" id="trend-empty">Run a query to chart recent news sentiment over time.</div>
+                </div>
+                <div class="trend-stats">
+                    <div class="trend-stat">
+                        <span class="trend-stat-label">Texts</span>
+                        <span class="trend-stat-value" id="trend-total">0</span>
+                    </div>
+                    <div class="trend-stat">
+                        <span class="trend-stat-label">Avg</span>
+                        <span class="trend-stat-value" id="trend-avg">0.0000</span>
+                    </div>
+                    <div class="trend-stat">
+                        <span class="trend-stat-label">Anomalies</span>
+                        <span class="trend-stat-value" id="trend-anomalies">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Latest news -->
+            <div class="panel-section">
+                <p class="panel-section-title">Recent Analyses</p>
+                <div id="news-feed">
+                    <div style="font-size:13px;color:var(--text-dim);padding:8px 0;">
+                        Analyses will appear here after queries.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Query history -->
+            <div class="panel-section">
+                <p class="panel-section-title">Query History</p>
+                <div id="history-list">
+                    <div style="font-size:13px;color:var(--text-dim);padding:8px 0;">
+                        No queries yet.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</main>
 
 <script>
-    function handleKeyPress(event) {
-        if (event.key === 'Enter') {
+    const state = { queries: 0, pos: 0, neg: 0, neu: 0 };
+    let sentimentTrendChart = null;
+
+    function autoResize(el) {
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+    }
+
+    function handleKey(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
             sendMessage();
         }
     }
 
-    async function sendMessage() {
-        const inputField = document.getElementById('user-input');
-        const message = inputField.value.trim();
-        if (!message) return;
+    function quickSearch(query) {
+        document.getElementById('user-input').value = query;
+        sendMessage();
+    }
 
-        // Display User Message
-        addMessage(message, 'user-msg');
-        inputField.value = '';
+    function getTime() {
+        return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
 
-        // Temporary Typing Indicator
-        const typingId = "typing-" + Date.now();
-        addMessage("Analyzing sentiment and querying Gemini...", 'bot-msg', null, typingId);
+    function getSentimentClass(sentiment) {
+        if (!sentiment) return 'neutral';
+        const s = sentiment.toLowerCase();
+        if (s.includes('positive')) return 'positive';
+        if (s.includes('negative')) return 'negative';
+        return 'neutral';
+    }
 
+    function getSentimentLabel(sentiment) {
+        if (!sentiment) return 'Neutral';
+        const s = sentiment.toLowerCase();
+        if (s.includes('positive')) return 'Positive';
+        if (s.includes('negative')) return 'Negative';
+        return 'Neutral';
+    }
+
+    function updateMetrics(sentiment) {
+        state.queries++;
+        const cls = getSentimentClass(sentiment);
+        if (cls === 'positive') state.pos++;
+        else if (cls === 'negative') state.neg++;
+        else state.neu++;
+
+        document.getElementById('metric-queries').textContent = state.queries;
+        document.getElementById('metric-pos').textContent = state.pos;
+        document.getElementById('metric-neg').textContent = state.neg;
+        document.getElementById('metric-neu').textContent = state.neu;
+        document.getElementById('query-count').textContent = state.queries;
+
+        const total = state.queries;
+        const pp = Math.round(state.pos/total*100);
+        const np = Math.round(state.neg/total*100);
+        const nup = Math.round(state.neu/total*100);
+
+        document.getElementById('metric-pos-pct').textContent = `${pp}% of queries`;
+        document.getElementById('metric-neg-pct').textContent = `${np}% of queries`;
+        document.getElementById('metric-neu-pct').textContent = `${nup}% of queries`;
+
+        document.getElementById('bar-pos').style.width = pp + '%';
+        document.getElementById('bar-neg').style.width = np + '%';
+        document.getElementById('bar-neu').style.width = nup + '%';
+        document.getElementById('bpct-pos').textContent = pp + '%';
+        document.getElementById('bpct-neg').textContent = np + '%';
+        document.getElementById('bpct-neu').textContent = nup + '%';
+
+        const avgMap = { positive: '+', negative: 'âˆ’', neutral: '~' };
+        document.getElementById('avg-sentiment').textContent = avgMap[cls] + 'trend';
+    }
+
+    function addNewsItem(query, sentiment) {
+        const feed = document.getElementById('news-feed');
+        const placeholder = feed.querySelector('div[style]');
+        if (placeholder) placeholder.remove();
+
+        const cls = getSentimentClass(sentiment);
+        const clsShort = { positive: 'pos', negative: 'neg', neutral: 'neu' }[cls];
+        const label = getSentimentLabel(sentiment);
+
+        const item = document.createElement('div');
+        item.className = 'news-item';
+        item.innerHTML = `
+            <div class="news-source">AI Analysis</div>
+            <div class="news-headline">${query}</div>
+            <div class="news-meta">
+                <span class="news-time">${getTime()}</span>
+                <span class="news-tag ${clsShort}">${label}</span>
+            </div>
+        `;
+        feed.insertBefore(item, feed.firstChild);
+    }
+
+    function addHistoryItem(query, sentiment) {
+        const list = document.getElementById('history-list');
+        const placeholder = list.querySelector('div[style]');
+        if (placeholder) placeholder.remove();
+
+        const cls = getSentimentClass(sentiment);
+        const clsShort = { positive: 'pos', negative: 'neg', neutral: 'neu' }[cls];
+        const label = getSentimentLabel(sentiment);
+
+        const item = document.createElement('div');
+        item.className = 'history-item';
+        item.innerHTML = `
+            <span class="history-query">${query}</span>
+            <span class="history-chip ${clsShort}">${label}</span>
+        `;
+        item.onclick = () => quickSearch(query);
+        list.insertBefore(item, list.firstChild);
+
+        // Keep max 8
+        const items = list.querySelectorAll('.history-item');
+        if (items.length > 8) items[items.length - 1].remove();
+    }
+
+    function updateTrendStats(summary) {
+        document.getElementById('trend-total').textContent = summary?.total_texts ?? 0;
+        document.getElementById('trend-avg').textContent = Number(summary?.overall_avg ?? 0).toFixed(4);
+        document.getElementById('trend-anomalies').textContent = summary?.anomaly_dates?.length ?? 0;
+    }
+
+    function renderSentimentTrend(query, chartjs, summary) {
+        const canvas = document.getElementById('sentiment-trend-chart');
+        const empty = document.getElementById('trend-empty');
+        const labels = chartjs?.labels || [];
+
+        document.getElementById('trend-query').textContent = query;
+        updateTrendStats(summary || {});
+
+        if (!labels.length) {
+            if (sentimentTrendChart) {
+                sentimentTrendChart.destroy();
+                sentimentTrendChart = null;
+            }
+            canvas.style.display = 'none';
+            empty.style.display = 'flex';
+            empty.textContent = 'No recent news trend data found for this query.';
+            return;
+        }
+
+        canvas.style.display = 'block';
+        empty.style.display = 'none';
+
+        if (sentimentTrendChart) {
+            sentimentTrendChart.destroy();
+        }
+
+        sentimentTrendChart = new Chart(canvas, {
+            type: 'line',
+            data: chartjs,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: '#6b7280', boxWidth: 10, font: { size: 10 } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: (ctx) => {
+                                const record = chartjs.records?.[ctx.dataIndex];
+                                return record?.is_anomaly ? `Anomaly: ${record.anomaly_dir}` : '';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#6b7280', maxTicksLimit: 4, font: { size: 10 } },
+                        grid: { color: 'rgba(255,255,255,0.05)' }
+                    },
+                    y: {
+                        min: -1,
+                        max: 1,
+                        ticks: { color: '#6b7280', font: { size: 10 } },
+                        grid: { color: 'rgba(255,255,255,0.05)' }
+                    }
+                }
+            }
+        });
+    }
+
+    async function loadSentimentTrend(query) {
         try {
-            // Send to Flask Backend
-            const response = await fetch('/chat', {
+            const res = await fetch('/sentiment-trend', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: message })
+                body: JSON.stringify({ query })
             });
-            
-            const data = await response.json();
-            
-            // Remove typing indicator
-            document.getElementById(typingId).remove();
-            
-            // Format markdown bold (**text**) to HTML
-            let formattedResponse = data.response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            
-            // Add bot message with sentiment badge
-            addMessage(formattedResponse, 'bot-msg', data.sentiment);
-            
-        } catch (error) {
-            document.getElementById(typingId).remove();
-            addMessage('System Error: Unable to connect to backend API.', 'bot-msg');
-            console.error(error);
+            const data = await res.json();
+            const chartjs = data.chartjs || { labels: [], datasets: [] };
+            chartjs.records = data.records || [];
+            renderSentimentTrend(query, chartjs, data.summary);
+        } catch (err) {
+            console.error(err);
+            renderSentimentTrend(query, { labels: [], datasets: [] }, {});
         }
     }
 
-    function addMessage(text, className, sentiment = null, id = null) {
+    function addMessage(text, role, sentiment, id) {
         const chatBox = document.getElementById('chat-box');
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `message ${className}`;
-        if (id) msgDiv.id = id;
-        
-        let content = '';
-        if (sentiment) {
-            content += `<span class="sentiment-badge">Base Sentiment: ${sentiment}</span>`;
+        const wrap = document.createElement('div');
+        wrap.className = `message-wrap ${role}`;
+        if (id) wrap.id = id;
+
+        let inner = '';
+
+        if (role === 'bot' && sentiment) {
+            const cls = getSentimentClass(sentiment);
+            const label = getSentimentLabel(sentiment);
+            inner += `<div class="sentiment-chip ${cls}">${label} sentiment signal</div>`;
         }
-        content += text;
-        
-        msgDiv.innerHTML = content;
-        chatBox.appendChild(msgDiv);
+
+        inner += `<div class="message-bubble">${text}</div>`;
+        inner += `<span class="message-time">${getTime()}</span>`;
+
+        wrap.innerHTML = inner;
+        chatBox.appendChild(wrap);
         chatBox.scrollTop = chatBox.scrollHeight;
     }
-</script>
 
+    async function sendMessage() {
+        const inputEl = document.getElementById('user-input');
+        const message = inputEl.value.trim();
+        if (!message) return;
+
+        addMessage(message, 'user', null);
+        inputEl.value = '';
+        inputEl.style.height = 'auto';
+
+        const typingId = 'typing-' + Date.now();
+        const chatBox = document.getElementById('chat-box');
+        const wrap = document.createElement('div');
+        wrap.className = 'message-wrap bot';
+        wrap.id = typingId;
+        wrap.innerHTML = `<div class="message-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+        chatBox.appendChild(wrap);
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        try {
+            const res = await fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            });
+
+            const data = await res.json();
+            document.getElementById(typingId)?.remove();
+
+            let formatted = (data.response || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            addMessage(formatted, 'bot', data.sentiment);
+
+            updateMetrics(data.sentiment);
+            addNewsItem(message, data.sentiment);
+            addHistoryItem(message, data.sentiment);
+            loadSentimentTrend(message);
+
+        } catch (err) {
+            document.getElementById(typingId)?.remove();
+            addMessage('Connection error. Ensure the Flask backend is running on port 5000.', 'bot', null);
+            console.error(err);
+        }
+    }
+</script>
 </body>
 </html>
+
+
