@@ -36,7 +36,7 @@ This project follows a Hybrid AI approach:
 * **Backend:** Python, Flask
 * **Frontend:** HTML, CSS, JavaScript
 * **NLP Model:** VADER
-* **Generative AI:** Gemini 2.5 Flash
+* **Generative AI:** gemini-3.1-flash-lite-preview
 * **Data Source:** NewsAPI
 * **Libraries:** Pandas, Requests
 
